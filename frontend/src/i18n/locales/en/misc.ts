@@ -294,6 +294,7 @@ export default {
     rechargeBonus: {
       creditedShort: 'Get {amount}',
       payShort: 'Pay {amount}',
+      savedShort: 'Save {amount}',
       amountLabel: 'Bonus',
       amountLabelWithPercent: 'Bonus (+{percent}%)',
       discountLabelWithPercent: 'Discount ({percent}% OFF)',

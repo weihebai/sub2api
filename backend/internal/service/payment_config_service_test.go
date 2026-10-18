@@ -237,6 +237,34 @@ func TestParsePaymentConfig(t *testing.T) {
 	})
 }
 
+func TestPaymentQuickAmountsParsingAndValidation(t *testing.T) {
+	svc := &PaymentConfigService{}
+	defaults := svc.parsePaymentConfig(map[string]string{}).QuickAmounts
+	want := []float64{50, 100, 300, 500, 1000, 2000, 3000, 5000}
+	if len(defaults) != len(want) {
+		t.Fatalf("default quick amounts length = %d, want %d", len(defaults), len(want))
+	}
+	for i := range want {
+		if defaults[i] != want[i] {
+			t.Fatalf("default quick amounts = %v, want %v", defaults, want)
+		}
+	}
+	configured := svc.parsePaymentConfig(map[string]string{SettingQuickAmounts: "[25,75.5]"}).QuickAmounts
+	if len(configured) != 2 || configured[0] != 25 || configured[1] != 75.5 {
+		t.Fatalf("configured quick amounts = %v", configured)
+	}
+	valid := []float64{50, 100, 300}
+	if _, err := resolvePaymentQuickAmounts(&valid); err != nil {
+		t.Fatalf("valid quick amounts rejected: %v", err)
+	}
+	invalid := [][]float64{{0}, {-1}, {10, 10}, {1.001}}
+	for _, amounts := range invalid {
+		if _, err := resolvePaymentQuickAmounts(&amounts); err == nil {
+			t.Errorf("invalid quick amounts accepted: %v", amounts)
+		}
+	}
+}
+
 func TestGetBasePaymentType(t *testing.T) {
 	t.Parallel()
 

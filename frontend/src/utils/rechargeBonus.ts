@@ -127,12 +127,12 @@ export function isDuplicateRechargeBonusMinAmount(tiers: RechargeBonusTierDraft[
   return tiers.some((tier, i) => i !== index && isRechargeBonusMinAmountValid(tier.min_amount) && minAmountKey(tier.min_amount) === key)
 }
 
-// 命中规则：取不超过支付金额的最大阈值档位；与后端 matchRechargeBonusTier 一致。
-export function matchRechargeBonusTier(tiers: RechargeBonusTier[], paymentAmount: number): RechargeBonusTier | null {
-  if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) return null
+// 命中规则：取不超过到账余额的最大阈值档位；与后端 matchRechargeBonusTier 一致。
+export function matchRechargeBonusTier(tiers: RechargeBonusTier[], creditedAmount: number): RechargeBonusTier | null {
+  if (!Number.isFinite(creditedAmount) || creditedAmount <= 0) return null
   let matched: RechargeBonusTier | null = null
   for (const tier of tiers) {
-    if (paymentAmount + AMOUNT_EPSILON < tier.min_amount) continue
+    if (creditedAmount + AMOUNT_EPSILON < tier.min_amount) continue
     if (!matched || tier.min_amount > matched.min_amount) matched = tier
   }
   return matched
@@ -151,7 +151,7 @@ export interface RechargeBonusQuoteOptions {
   currencyDigits?: number
 }
 
-// 充值页报价：阈值按支付金额比较；赠金模式按到账基数加赠送，折扣模式按百分比减实付。
+// 充值页报价：阈值按到账余额比较；赠金模式按到账基数加赠送，折扣模式按百分比减实付。
 // 与后端 quoteRechargeBonus 一致（含折扣 ≥ 100% 的 fail-safe）。
 export function quoteRechargeBonus(
   tiers: RechargeBonusTier[],
@@ -165,7 +165,7 @@ export function quoteRechargeBonus(
   const digits = typeof opts.currencyDigits === 'number' && Number.isInteger(opts.currencyDigits) && opts.currencyDigits >= 0 ? opts.currencyDigits : 2
   const base = roundRechargeAmount(amount * rate)
   const quote: RechargeBonusQuote = { mode, percent: 0, payBase: amount, base, bonus: 0, credited: base, tier: null }
-  const tier = matchRechargeBonusTier(tiers, amount)
+  const tier = matchRechargeBonusTier(tiers, base)
   if (!tier || tier.bonus_percent <= 0) return quote
   quote.tier = tier
   if (mode === 'discount') {

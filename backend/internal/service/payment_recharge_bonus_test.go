@@ -271,10 +271,10 @@ func TestQuoteRechargeBonus(t *testing.T) {
 		q := quoteRechargeBonus(cfg, 500, "USD")
 		require.Equal(t, rechargeBonusQuote{PayBase: 250, Credited: 500, Bonus: 250, Percent: 50}, q)
 
-		// 倍率 0.14：1000 CNY 到账 140 USD；20% off 实付 800 CNY，免费部分 = 140 − 112 = 28 USD
+		// 倍率 0.14：1000 CNY 到账 140 USD，命中 20% off。
 		cfg.BalanceRechargeMultiplier = 0.14
 		q = quoteRechargeBonus(cfg, 1000, "CNY")
-		require.Equal(t, rechargeBonusQuote{PayBase: 500, Credited: 140, Bonus: 70, Percent: 50}, q)
+		require.Equal(t, rechargeBonusQuote{PayBase: 800, Credited: 140, Bonus: 28, Percent: 20}, q)
 		q = quoteRechargeBonus(cfg, 200, "CNY")
 		require.Equal(t, rechargeBonusQuote{PayBase: 160, Credited: 28, Bonus: 5.6, Percent: 20}, q)
 	})

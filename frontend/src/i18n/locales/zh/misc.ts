@@ -318,6 +318,7 @@ export default {
     rechargeBonus: {
       creditedShort: '到账 {amount}',
       payShort: '实付 {amount}',
+      savedShort: '节省 {amount}',
       amountLabel: '赠送额度',
       amountLabelWithPercent: '赠送额度 (+{percent}%)',
       discountLabelWithPercent: '优惠 ({percent}% OFF)',

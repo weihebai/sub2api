@@ -16,7 +16,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// 充值优惠阶梯：余额充值订单按用户输入的支付金额命中阶梯（取不超过该金额的最大 MinAmount），
+// 充值优惠阶梯：余额充值订单按到账余额命中阶梯（取不超过该金额的最大 MinAmount），
 // 整条阶梯只有一种模式（RECHARGE_BONUS_MODE）：
 //   - bonus（赠金）：实付不变，在到账基数（输入 × 充值倍率）之上额外赠送 BonusPercent% 的 USD 余额；
 //   - discount（折扣）：到账不变（输入 × 倍率），实付基数按 BonusPercent% 打折。
@@ -44,7 +44,7 @@ const (
 	rechargeBonusAmountEpsilon  = 1e-9
 )
 
-// RechargeBonusTier 一个优惠档位：支付金额 ≥ MinAmount 时按 BonusPercent% 赠送（bonus）或打折（discount）。
+// RechargeBonusTier 一个优惠档位：到账余额 ≥ MinAmount 时按 BonusPercent% 赠送（bonus）或打折（discount）。
 type RechargeBonusTier struct {
 	MinAmount    float64 `json:"min_amount"`
 	BonusPercent float64 `json:"bonus_percent"`
@@ -212,15 +212,15 @@ func (s *PaymentConfigService) resolveRechargeBonusUpdate(ctx context.Context, r
 	return tiersValue, mode, nil
 }
 
-// matchRechargeBonusTier 返回不超过 paymentAmount 的最大档位；tiers 需已按 MinAmount 升序。
-func matchRechargeBonusTier(tiers []RechargeBonusTier, paymentAmount float64) (RechargeBonusTier, bool) {
-	if math.IsNaN(paymentAmount) || math.IsInf(paymentAmount, 0) || paymentAmount <= 0 {
+// matchRechargeBonusTier 返回不超过 creditedAmount 的最大档位；tiers 需已按 MinAmount 升序。
+func matchRechargeBonusTier(tiers []RechargeBonusTier, creditedAmount float64) (RechargeBonusTier, bool) {
+	if math.IsNaN(creditedAmount) || math.IsInf(creditedAmount, 0) || creditedAmount <= 0 {
 		return RechargeBonusTier{}, false
 	}
 	var matched RechargeBonusTier
 	found := false
 	for _, tier := range tiers {
-		if paymentAmount+rechargeBonusAmountEpsilon < tier.MinAmount {
+		if creditedAmount+rechargeBonusAmountEpsilon < tier.MinAmount {
 			break
 		}
 		matched = tier
@@ -285,7 +285,7 @@ func quoteRechargeBonus(cfg *PaymentConfig, paymentAmount float64, currency stri
 	base := calculateCreditedBalance(paymentAmount, multiplier)
 	quote := rechargeBonusQuote{PayBase: paymentAmount, Credited: base}
 
-	tier, ok := matchRechargeBonusTier(tiers, paymentAmount)
+	tier, ok := matchRechargeBonusTier(tiers, base)
 	if !ok || tier.BonusPercent <= 0 {
 		return quote
 	}

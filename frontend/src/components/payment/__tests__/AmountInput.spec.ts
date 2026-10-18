@@ -67,17 +67,17 @@ describe('recharge bonus hints on quick amounts', () => {
     expect(second.get('[data-testid="quick-amount-credited"]').text()).toContain('$650.00')
   })
 
-  it('bonus mode: matches tiers by the entered amount but credits by the multiplier', () => {
+  it('bonus mode: matches tiers by credited amount', () => {
     const wrapper = mount(AmountInput, {
       props: { modelValue: null, amounts: [1000], bonusTiers: tiers, multiplier: 0.14 },
     })
     const button = wrapper.get('[data-testid="quick-amount-1000"]')
     expect(button.get('[data-testid="quick-amount-bonus-badge"]').text()).toBe('+30%')
-    // 1000 × 0.14 = 140 base, +30% = 182
-    expect(button.get('[data-testid="quick-amount-credited"]').text()).toContain('$182.00')
+    // 1000 USD credit target matches the 500 USD tier, +30% = 1300.
+    expect(button.get('[data-testid="quick-amount-credited"]').text()).toContain('$1300.00')
   })
 
-  it('discount mode: tag reads N% OFF and the second line shows the discounted payment', () => {
+  it('discount mode: tag reads the remaining discount ratio and shows saved amount', () => {
     const wrapper = mount(AmountInput, {
       props: { modelValue: null, amounts: [50, 500], bonusTiers: tiers, bonusMode: 'discount', currency: 'USD' },
     })
@@ -85,8 +85,18 @@ describe('recharge bonus hints on quick amounts', () => {
     const hit = wrapper.get('[data-testid="quick-amount-500"]')
     expect(below.find('[data-testid="quick-amount-bonus-badge"]').exists()).toBe(false)
     expect(below.get('[data-testid="quick-amount-credited"]').text()).toContain('50.00')
-    expect(hit.get('[data-testid="quick-amount-bonus-badge"]').text()).toBe('30% OFF')
+    expect(hit.get('[data-testid="quick-amount-bonus-badge"]').text()).toBe('7折')
     // 500 × (1 − 30%) = 350
     expect(hit.get('[data-testid="quick-amount-credited"]').text()).toContain('350.00')
+    expect(hit.text()).toContain('$150.00')
+  })
+
+  it('discount mode: calculates saved payment amount from the credited target and multiplier', () => {
+    const wrapper = mount(AmountInput, {
+      props: { modelValue: null, amounts: [50], bonusTiers: [{ min_amount: 50, bonus_percent: 1 }], bonusMode: 'discount', multiplier: 5, currency: 'CNY' },
+    })
+    const button = wrapper.get('[data-testid="quick-amount-50"]')
+    expect(button.get('[data-testid="quick-amount-credited"]').text()).toContain('¥9.90')
+    expect(button.text()).toContain('¥0.10')
   })
 })

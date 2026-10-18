@@ -66,7 +66,7 @@ describe('rechargeBonus helpers', () => {
     expect(isDuplicateRechargeBonusMinAmount(drafts, 2)).toBe(false)
   })
 
-  it('matches the highest threshold not above the payment amount', () => {
+  it('matches the highest threshold not above the credited amount', () => {
     expect(matchRechargeBonusTier(tiers, 99.99)).toBeNull()
     expect(matchRechargeBonusTier(tiers, 100)?.bonus_percent).toBe(20)
     expect(matchRechargeBonusTier(tiers, 499.99)?.bonus_percent).toBe(20)
@@ -82,12 +82,12 @@ describe('rechargeBonus helpers', () => {
     expect(calculateRechargeBonus(100, 0)).toBe(0)
   })
 
-  it('quotes threshold by payment amount and bonus by credited base', () => {
+  it('quotes threshold and bonus by credited base', () => {
     expect(quoteRechargeBonus(tiers, 100)).toMatchObject({ percent: 20, base: 100, bonus: 20, credited: 120 })
-    // 1000 CNY × 0.14 = 140 USD base; threshold matched by the entered 1000 → 35%
-    expect(quoteRechargeBonus(tiers, 1000, 0.14)).toMatchObject({ percent: 35, base: 140, bonus: 49, credited: 189 })
-    // 700 CNY → 98 USD base; matched by 700 → 30%
-    expect(quoteRechargeBonus(tiers, 700, 0.14)).toMatchObject({ percent: 30, base: 98, bonus: 29.4, credited: 127.4 })
+    // 1000 CNY × 0.14 = 140 USD base; tier is below the first 500 USD threshold.
+    expect(quoteRechargeBonus(tiers, 1000, 0.14)).toMatchObject({ percent: 20, base: 140, bonus: 28, credited: 168 })
+    // 700 CNY → 98 USD base, below the first 100 USD threshold.
+    expect(quoteRechargeBonus(tiers, 700, 0.14)).toMatchObject({ percent: 0, base: 98, bonus: 0, credited: 98 })
     expect(quoteRechargeBonus(tiers, 50)).toMatchObject({ percent: 0, base: 50, bonus: 0, credited: 50, tier: null })
     expect(quoteRechargeBonus([], 100)).toMatchObject({ percent: 0, bonus: 0, credited: 100 })
   })
@@ -96,9 +96,9 @@ describe('rechargeBonus helpers', () => {
     expect(quoteRechargeBonus(tiers, 500, { mode: 'discount' })).toMatchObject({
       mode: 'discount', percent: 30, payBase: 350, base: 500, bonus: 150, credited: 500,
     })
-    // 倍率 0.14：1000 CNY 到账 140 USD，35% off 实付 650 CNY，免费部分 140 − 91 = 49 USD
+    // 倍率 0.14：1000 CNY 到账 140 USD，命中 20% off，实付 800 CNY。
     expect(quoteRechargeBonus(tiers, 1000, { mode: 'discount', multiplier: 0.14 })).toMatchObject({
-      percent: 35, payBase: 650, base: 140, bonus: 49, credited: 140,
+      percent: 20, payBase: 800, base: 140, bonus: 28, credited: 140,
     })
     // 币种精度：JPY 无小数
     expect(quoteRechargeBonus([{ min_amount: 1, bonus_percent: 15 }], 101, { mode: 'discount' }).payBase).toBe(85.85)

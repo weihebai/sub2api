@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -29,6 +30,7 @@ const (
 	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
 	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
+	SettingQuickAmounts                  = "PAYMENT_QUICK_AMOUNTS"
 	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
 	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
@@ -62,6 +64,7 @@ type PaymentConfig struct {
 	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
 	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
+	QuickAmounts             []float64 `json:"quick_amounts"`
 	// RechargeBonusTiers 余额充值优惠阶梯（按 MinAmount 升序）；空表示无优惠。
 	RechargeBonusTiers []RechargeBonusTier `json:"recharge_bonus_tiers"`
 	// RechargeBonusMode 阶梯模式：bonus（赠金）/ discount（折扣），已归一化。
@@ -101,6 +104,7 @@ type UpdatePaymentConfigRequest struct {
 	BalanceRechargeMultiplier *float64 `json:"balance_recharge_multiplier"`
 	SubscriptionUSDToCNYRate  *float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
+	QuickAmounts              *[]float64 `json:"quick_amounts"`
 	// RechargeBonusTiers nil 表示不更新；空切片表示清空阶梯。
 	RechargeBonusTiers  *[]RechargeBonusTier `json:"recharge_bonus_tiers"`
 	RechargeBonusMode   *string              `json:"recharge_bonus_mode"`
@@ -230,7 +234,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
 		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
-		SettingRechargeBonusTiers, SettingRechargeBonusMode, SettingRechargeBonusNotice,
+		SettingRechargeBonusTiers, SettingRechargeBonusMode, SettingRechargeBonusNotice, SettingQuickAmounts,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -261,6 +265,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		BalanceRechargeMultiplier: normalizeBalanceRechargeMultiplier(pcParseFloat(vals[SettingBalanceRechargeMult], defaultBalanceRechargeMultiplier)),
 		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
+		QuickAmounts:              parsePaymentQuickAmounts(vals[SettingQuickAmounts]),
 		RechargeBonusTiers:        parseRechargeBonusTiers(vals[SettingRechargeBonusTiers]),
 		RechargeBonusNotice:       vals[SettingRechargeBonusNotice],
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
@@ -297,6 +302,44 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		cfg.EnabledTypes = NormalizeVisibleMethods(types)
 	}
 	return cfg
+}
+
+func parsePaymentQuickAmounts(raw string) []float64 {
+	if raw == "" {
+		return []float64{50, 100, 300, 500, 1000, 2000, 3000, 5000}
+	}
+	var amounts []float64
+	if err := json.Unmarshal([]byte(raw), &amounts); err != nil {
+		return []float64{}
+	}
+	if amounts == nil {
+		return []float64{}
+	}
+	return amounts
+}
+
+func resolvePaymentQuickAmounts(amounts *[]float64) (string, error) {
+	if amounts == nil {
+		return "", nil
+	}
+	seen := make(map[float64]struct{}, len(*amounts))
+	if len(*amounts) > 20 {
+		return "", infraerrors.BadRequest("INVALID_PAYMENT_QUICK_AMOUNTS", "quick amount list cannot contain more than 20 values")
+	}
+	for _, amount := range *amounts {
+		if math.IsNaN(amount) || math.IsInf(amount, 0) || amount <= 0 || math.Round(amount*100) != amount*100 {
+			return "", infraerrors.BadRequest("INVALID_PAYMENT_QUICK_AMOUNTS", "quick amounts must be positive numbers with at most 2 decimal places")
+		}
+		if _, exists := seen[amount]; exists {
+			return "", infraerrors.BadRequest("INVALID_PAYMENT_QUICK_AMOUNTS", "quick amounts cannot contain duplicates")
+		}
+		seen[amount] = struct{}{}
+	}
+	encoded, err := json.Marshal(*amounts)
+	if err != nil {
+		return "", infraerrors.BadRequest("INVALID_PAYMENT_QUICK_AMOUNTS", "quick amount list is invalid")
+	}
+	return string(encoded), nil
 }
 
 func pcEnvBoolOverride(key string, fallback bool) bool {
@@ -357,6 +400,10 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
 		}
 	}
+	quickAmountsValue, err := resolvePaymentQuickAmounts(req.QuickAmounts)
+	if err != nil {
+		return err
+	}
 	rechargeBonusTiersValue, rechargeBonusModeValue, err := s.resolveRechargeBonusUpdate(ctx, req)
 	if err != nil {
 		return err
@@ -399,6 +446,9 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	}
 	if req.RechargeFeeRate != nil {
 		m[SettingRechargeFeeRate] = formatNonNegativeFloat(req.RechargeFeeRate)
+	}
+	if req.QuickAmounts != nil {
+		m[SettingQuickAmounts] = quickAmountsValue
 	}
 	if req.RechargeBonusTiers != nil {
 		m[SettingRechargeBonusTiers] = rechargeBonusTiersValue

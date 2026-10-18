@@ -59,9 +59,9 @@
               ></div>
               <AmountInput
                 v-model="amount"
-                :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
-                :min="globalMinAmount"
-                :max="globalMaxAmount"
+                :amounts="checkout.quick_amounts"
+                :min="rechargeMinAmount"
+                :max="rechargeMaxAmount"
                 :bonus-tiers="rechargeBonusTiers"
                 :bonus-mode="rechargeBonusMode"
                 :multiplier="balanceRechargeMultiplier"
@@ -80,7 +80,7 @@
               <div class="space-y-2 text-sm">
                 <div class="flex justify-between">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
-                  <span :class="discountAmount > 0 ? 'text-gray-400 line-through dark:text-gray-500' : 'text-gray-900 dark:text-white'">{{ formatSelectedPaymentAmount(validAmount) }}</span>
+                  <span :class="discountAmount > 0 ? 'text-gray-400 line-through dark:text-gray-500' : 'text-gray-900 dark:text-white'">{{ formatSelectedPaymentAmount(rechargePaymentAmount) }}</span>
                 </div>
                 <div v-if="discountAmount > 0" class="flex justify-between" data-testid="recharge-discount-row">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonus.discountLabelWithPercent', { percent: formatRechargeBonusNumber(bonusQuote.percent) }) }}</span>
@@ -530,8 +530,8 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
-  recharge_bonus_tiers: [], recharge_bonus_mode: 'bonus', recharge_bonus_notice: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_min_amount: 0, recharge_max_amount: 0, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  recharge_bonus_tiers: [], recharge_bonus_mode: 'bonus', recharge_bonus_notice: '', quick_amounts: [50, 100, 300, 500, 1000, 2000, 3000, 5000],
 })
 
 const renderedHelpText = computed(() => DOMPurify.sanitize(
@@ -572,6 +572,8 @@ const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
   return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
 })
+const rechargeMinAmount = computed(() => checkout.value.recharge_min_amount > 0 ? checkout.value.recharge_min_amount : 0)
+const rechargeMaxAmount = computed(() => checkout.value.recharge_max_amount > 0 ? checkout.value.recharge_max_amount : 0)
 // 订阅 CNY 换算汇率（1 USD = X CNY）。0 = 未配置，订阅保持 price 直付（与后端 opt-in 条件严格镜像）。
 const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
@@ -660,15 +662,18 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
-// 充值优惠：阈值按输入金额命中；赠金模式按到账基数（输入 × 倍率）加赠送，折扣模式按百分比减实付。
-// 与后端 quoteRechargeBonus 一致；渠道限额、手续费、实付都按折后基数（payBaseAmount）计算，提交仍发送输入金额。
-const bonusQuote = computed(() => quoteRechargeBonus(rechargeBonusTiers.value, validAmount.value, {
+// 快捷金额和自定义金额均表示目标到账 USD。订单接口仍接收支付币种金额，
+// 所以先按充值倍率换算，再由折扣规则计算最终实付。
+const rechargePaymentAmount = computed(() =>
+  roundPaymentAmount(validAmount.value / balanceRechargeMultiplier.value, selectedCurrency.value),
+)
+const bonusQuote = computed(() => quoteRechargeBonus(rechargeBonusTiers.value, rechargePaymentAmount.value, {
   multiplier: balanceRechargeMultiplier.value,
   mode: rechargeBonusMode.value,
   currencyDigits: currencyFractionDigits(selectedCurrency.value),
 }))
 const payBaseAmount = computed(() => bonusQuote.value.payBase)
-const discountAmount = computed(() => roundPaymentAmount(validAmount.value - payBaseAmount.value, selectedCurrency.value))
+const discountAmount = computed(() => roundPaymentAmount(rechargePaymentAmount.value - payBaseAmount.value, selectedCurrency.value))
 const creditedAmount = computed(() => bonusQuote.value.credited)
 const showBonusRow = computed(() => bonusQuote.value.mode !== 'discount' && bonusQuote.value.bonus > 0)
 const showCreditedBalance = computed(() => balanceRechargeMultiplier.value !== 1 || bonusQuote.value.percent > 0)
@@ -700,6 +705,12 @@ const showActualPay = computed(() => feeRate.value > 0 || discountAmount.value >
 
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
+  if (rechargeMinAmount.value > 0 && rechargePaymentAmount.value < rechargeMinAmount.value) {
+    return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(rechargeMinAmount.value) })
+  }
+  if (rechargeMaxAmount.value > 0 && rechargePaymentAmount.value > rechargeMaxAmount.value) {
+    return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(rechargeMaxAmount.value) })
+  }
   // No method can handle this amount
   if (!enabledMethods.value.some((m) => amountFitsMethod(payBaseAmount.value, m))) {
     return t('payment.amountNoMethod')
@@ -715,6 +726,8 @@ const amountError = computed(() => {
 
 const canSubmit = computed(() =>
   validAmount.value > 0
+    && (rechargeMinAmount.value <= 0 || rechargePaymentAmount.value >= rechargeMinAmount.value)
+    && (rechargeMaxAmount.value <= 0 || rechargePaymentAmount.value <= rechargeMaxAmount.value)
     && amountFitsMethod(payBaseAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
@@ -824,7 +837,7 @@ function closeRenewalModal() {
 
 async function handleSubmitRecharge() {
   if (!canSubmit.value || submitting.value) return
-  await createOrder(validAmount.value, 'balance')
+  await createOrder(rechargePaymentAmount.value, 'balance')
 }
 
 async function confirmSubscribe() {

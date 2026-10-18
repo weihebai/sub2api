@@ -8191,6 +8191,16 @@
                     </p>
                   </div>
                 </div>
+                <div class="mt-3">
+                  <label class="input-label">{{ t("admin.settings.payment.quickAmounts") }}</label>
+                  <input
+                    :value="form.payment_quick_amounts_text"
+                    type="text"
+                    class="input"
+                    placeholder="50, 100, 300, 500, 1000, 2000, 3000, 5000"
+                    @input="updateQuickAmounts($event)"
+                  />
+                </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
                 <div class="flex flex-wrap items-end gap-4">
                   <div class="w-28">
@@ -9758,6 +9768,8 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_weight_session_sticky: string;
   // 充值赠送阶梯编辑态：允许留空的行，提交时清洗为 RechargeBonusTier[]
   payment_recharge_bonus_tiers: RechargeBonusTierDraft[];
+  payment_quick_amounts: number[];
+  payment_quick_amounts_text: string;
   payment_recharge_bonus_mode: RechargeBonusMode;
   payment_recharge_bonus_notice: string;
   // 系统全局平台限额 map；form 内始终归一化为全部平台对象（模板非空绑定依赖此不变量）
@@ -9830,6 +9842,8 @@ const form = reactive<SettingsForm>({
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
+  payment_quick_amounts: [50, 100, 300, 500, 1000, 2000, 3000, 5000],
+  payment_quick_amounts_text: "50, 100, 300, 500, 1000, 2000, 3000, 5000",
   payment_recharge_bonus_tiers: [],
   payment_recharge_bonus_mode: "bonus",
   payment_recharge_bonus_notice: "",
@@ -10527,6 +10541,12 @@ function handleRegistrationEmailSuffixWhitelistDraftInput() {
     );
 }
 
+function updateQuickAmounts(event: Event) {
+  const text = (event.target as HTMLInputElement).value;
+  form.payment_quick_amounts_text = text;
+  form.payment_quick_amounts = text.trim() === "" ? [] : text.split(",").map((value) => Number(value.trim()));
+}
+
 function handleRegistrationEmailSuffixWhitelistDraftKeydown(
   event: KeyboardEvent,
 ) {
@@ -11106,6 +11126,8 @@ async function loadSettings() {
     form.payment_recharge_bonus_tiers = normalizeRechargeBonusTiers(
       settings.payment_recharge_bonus_tiers,
     );
+    form.payment_quick_amounts = settings.payment_quick_amounts ?? [50, 100, 300, 500, 1000, 2000, 3000, 5000];
+    form.payment_quick_amounts_text = form.payment_quick_amounts.join(", ");
     form.payment_recharge_bonus_mode = normalizeRechargeBonusMode(
       settings.payment_recharge_bonus_mode,
     );
@@ -11717,6 +11739,7 @@ async function saveSettings() {
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
+      payment_quick_amounts: form.payment_quick_amounts,
       payment_recharge_bonus_tiers: sanitizeRechargeBonusTiersForSubmit(
         form.payment_recharge_bonus_tiers,
       ),
