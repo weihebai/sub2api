@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"math"
@@ -597,6 +598,33 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	s.compileAPIKeyIPRules(apiKey)
 
 	return apiKey, nil
+}
+
+func (s *APIKeyService) EnsureDefaultGroupKey(ctx context.Context, userID, groupID int64) error {
+	if s == nil || s.apiKeyRepo == nil || s.groupRepo == nil || s.userRepo == nil {
+		return errors.New("api key service dependencies are unavailable")
+	}
+	group, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	if group.Status != StatusActive || group.IsSubscriptionType() {
+		return ErrGroupNotAllowed
+	}
+	if group.IsExclusive {
+		if err := s.userRepo.AddGroupToAllowedGroups(ctx, userID, groupID); err != nil {
+			return fmt.Errorf("grant exclusive group access: %w", err)
+		}
+	}
+	keys, _, err := s.apiKeyRepo.ListByUserID(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 1}, APIKeyListFilters{GroupID: &groupID})
+	if err != nil {
+		return fmt.Errorf("list user api keys for group: %w", err)
+	}
+	if len(keys) > 0 {
+		return nil
+	}
+	_, err = s.Create(ctx, userID, CreateAPIKeyRequest{Name: fmt.Sprintf("Default %s", group.Name), GroupID: &groupID})
+	return err
 }
 
 // List 获取用户的API Key列表

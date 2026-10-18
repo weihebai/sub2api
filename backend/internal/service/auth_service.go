@@ -86,6 +86,11 @@ type AuthService struct {
 	affiliateService      *AffiliateService
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	apiKeyService         *APIKeyService
+}
+
+func (s *AuthService) SetAPIKeyService(apiKeyService *APIKeyService) {
+	s.apiKeyService = apiKeyService
 }
 
 type CaptchaProof struct {
@@ -261,6 +266,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 	s.postAuthUserBootstrap(ctx, user, "email", true)
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	s.createDefaultAPIKeys(ctx, user.ID)
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 	if s.affiliateService != nil {
@@ -801,6 +807,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					created = true
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					s.createDefaultAPIKeys(ctx, user.ID)
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
@@ -822,6 +829,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					created = true
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					s.createDefaultAPIKeys(ctx, user.ID)
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
@@ -892,6 +900,17 @@ func (s *AuthService) assignSubscriptions(ctx context.Context, userID int64, ite
 			Notes:        notes,
 		}); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to assign default subscription: user_id=%d group_id=%d err=%v", userID, item.GroupID, err)
+		}
+	}
+}
+
+func (s *AuthService) createDefaultAPIKeys(ctx context.Context, userID int64) {
+	if s == nil || s.settingService == nil || s.apiKeyService == nil || s.userRepo == nil || userID <= 0 {
+		return
+	}
+	for _, groupID := range s.settingService.GetDefaultAPIKeyGroups(ctx) {
+		if err := s.apiKeyService.EnsureDefaultGroupKey(ctx, userID, groupID); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to create default API key for user %d group %d: %v", userID, groupID, err)
 		}
 	}
 }

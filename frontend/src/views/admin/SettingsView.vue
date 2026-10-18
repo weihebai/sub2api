@@ -4029,6 +4029,24 @@
                     </div>
                   </div>
                 </div>
+
+                <div class="mt-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+                  <label class="mb-1 block font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.defaults.defaultAPIKeyGroups") }}
+                  </label>
+                  <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.defaults.defaultAPIKeyGroupsHint") }}
+                  </p>
+                  <div v-if="allActiveGroups.length === 0" class="rounded border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                    {{ t("admin.settings.defaults.defaultAPIKeyGroupsEmpty") }}
+                  </div>
+                  <div v-else class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <label v-for="group in allActiveGroups" :key="group.id" class="flex items-center gap-2 rounded border border-gray-200 px-3 py-2 dark:border-dark-700">
+                      <input v-model="form.default_api_key_groups" type="checkbox" :value="group.id" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                      <span class="text-sm text-gray-700 dark:text-gray-200">{{ group.name }}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <!-- ★ 新增：系统全局默认平台限额矩阵 -->
@@ -9194,6 +9212,7 @@ const adminApiKeyMasked = ref("");
 const adminApiKeyOperating = ref(false);
 const newAdminApiKey = ref("");
 const subscriptionGroups = ref<AdminGroup[]>([]);
+const allActiveGroups = ref<AdminGroup[]>([]);
 
 // Upstream billing probe state
 const upstreamBillingProbeLoading = ref(true);
@@ -9816,6 +9835,7 @@ const form = reactive<SettingsForm>({
   affiliate_admin_recharge_enabled: false,
   default_concurrency: 1,
   default_subscriptions: [],
+  default_api_key_groups: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
   site_name: "Sub2API",
@@ -11140,6 +11160,7 @@ async function loadSettings() {
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
     );
+    form.default_api_key_groups = settings.default_api_key_groups ?? [];
     registrationEmailSuffixWhitelistTags.value =
       normalizeRegistrationEmailSuffixDomains(
         settings.registration_email_suffix_whitelist,
@@ -11255,11 +11276,15 @@ async function loadSettings() {
 async function loadSubscriptionGroups() {
   try {
     const groups = await adminAPI.groups.getAll();
+    allActiveGroups.value = groups.filter(
+      (group) => group.status === "active" && group.subscription_type !== "subscription",
+    );
     subscriptionGroups.value = groups.filter(
       (group) =>
         group.subscription_type === "subscription" && group.status === "active",
     );
   } catch (_error: unknown) {
+    allActiveGroups.value = [];
     subscriptionGroups.value = [];
   }
 }
@@ -11533,6 +11558,7 @@ async function saveSettings() {
       affiliate_admin_recharge_enabled: form.affiliate_admin_recharge_enabled,
       default_concurrency: form.default_concurrency,
       default_subscriptions: normalizedDefaultSubscriptions,
+      default_api_key_groups: form.default_api_key_groups,
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
       default_user_rpm_limit: form.default_user_rpm_limit,
       site_name: form.site_name,

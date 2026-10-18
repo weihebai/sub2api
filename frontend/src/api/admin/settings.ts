@@ -435,6 +435,7 @@ export interface SystemSettings {
   default_concurrency: number;
   default_user_rpm_limit: number;
   default_subscriptions: DefaultSubscriptionSetting[];
+  default_api_key_groups: number[];
   auth_source_default_email_balance?: number;
   auth_source_default_email_concurrency?: number;
   auth_source_default_email_subscriptions?: DefaultSubscriptionSetting[];
@@ -789,6 +790,7 @@ export interface UpdateSettingsRequest {
   default_concurrency?: number;
   default_user_rpm_limit?: number;
   default_subscriptions?: DefaultSubscriptionSetting[];
+  default_api_key_groups?: number[];
   auth_source_default_email_balance?: number;
   auth_source_default_email_concurrency?: number;
   auth_source_default_email_subscriptions?: DefaultSubscriptionSetting[];

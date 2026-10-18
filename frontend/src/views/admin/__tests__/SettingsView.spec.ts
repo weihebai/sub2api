@@ -381,6 +381,7 @@ const baseSettingsResponse = {
   default_balance: 0,
   default_concurrency: 1,
   default_subscriptions: [],
+  default_api_key_groups: [],
   site_name: "Sub2API",
   site_logo: "",
   site_subtitle: "",

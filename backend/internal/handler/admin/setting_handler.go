@@ -274,6 +274,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AdminRechargeRebateEnabled:                             settings.AdminRechargeRebateEnabled,
 		DefaultUserRPMLimit:                                    settings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   defaultSubscriptions,
+		DefaultAPIKeyGroups:                                    settings.DefaultAPIKeyGroups,
 		EnableModelFallback:                                    settings.EnableModelFallback,
 		FallbackModelAnthropic:                                 settings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                                    settings.FallbackModelOpenAI,

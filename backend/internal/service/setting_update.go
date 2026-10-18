@@ -102,6 +102,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
+	if err := s.validateDefaultAPIKeyGroups(ctx, settings.DefaultAPIKeyGroups); err != nil {
+		return nil, err
+	}
 	normalizedWhitelist, err := NormalizeRegistrationEmailSuffixWhitelist(settings.RegistrationEmailSuffixWhitelist)
 	if err != nil {
 		return nil, infraerrors.BadRequest("INVALID_REGISTRATION_EMAIL_SUFFIX_WHITELIST", err.Error())
@@ -390,6 +393,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, fmt.Errorf("marshal default subscriptions: %w", err)
 	}
 	updates[SettingKeyDefaultSubscriptions] = string(defaultSubsJSON)
+	defaultAPIKeyGroupsJSON, err := json.Marshal(NormalizeDefaultAPIKeyGroups(settings.DefaultAPIKeyGroups))
+	if err != nil {
+		return nil, fmt.Errorf("marshal default api key groups: %w", err)
+	}
+	updates[SettingKeyDefaultAPIKeyGroups] = string(defaultAPIKeyGroupsJSON)
 
 	// Model fallback configuration
 	updates[SettingKeyEnableModelFallback] = strconv.FormatBool(settings.EnableModelFallback)
@@ -855,5 +863,24 @@ func (s *SettingService) validateDefaultSubscriptionGroups(ctx context.Context, 
 		}
 	}
 
+	return nil
+}
+
+func (s *SettingService) validateDefaultAPIKeyGroups(ctx context.Context, groupIDs []int64) error {
+	if s.defaultSubGroupReader == nil {
+		return nil
+	}
+	for _, groupID := range NormalizeDefaultAPIKeyGroups(groupIDs) {
+		group, err := s.defaultSubGroupReader.GetByID(ctx, groupID)
+		if err != nil {
+			if errors.Is(err, ErrGroupNotFound) {
+				return ErrDefaultAPIKeyGroupInvalid.WithMetadata(map[string]string{"group_id": strconv.FormatInt(groupID, 10)})
+			}
+			return fmt.Errorf("get default api key group %d: %w", groupID, err)
+		}
+		if group.Status != StatusActive || group.IsSubscriptionType() {
+			return ErrDefaultAPIKeyGroupInvalid.WithMetadata(map[string]string{"group_id": strconv.FormatInt(groupID, 10)})
+		}
+	}
 	return nil
 }

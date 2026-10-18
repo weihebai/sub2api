@@ -341,6 +341,14 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+func (s *SettingService) GetDefaultAPIKeyGroups(ctx context.Context) []int64 {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultAPIKeyGroups)
+	if err != nil {
+		return nil
+	}
+	return parseDefaultAPIKeyGroups(value)
+}
+
 func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*AuthSourceDefaultSettings, error) {
 	keys := []string{
 		SettingKeyAuthSourceDefaultEmailBalance,

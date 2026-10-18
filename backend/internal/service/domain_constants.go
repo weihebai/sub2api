@@ -393,6 +393,7 @@ const (
 	SettingKeyDefaultConcurrency   = "default_concurrency"    // 新用户默认并发量
 	SettingKeyDefaultBalance       = "default_balance"        // 新用户默认余额
 	SettingKeyDefaultSubscriptions = "default_subscriptions"  // 新用户默认订阅列表（JSON）
+	SettingKeyDefaultAPIKeyGroups  = "default_api_key_groups" // 新用户自动创建 API Key 的分组列表（JSON）
 	SettingKeyDefaultUserRPMLimit  = "default_user_rpm_limit" // 新用户默认 RPM 限制（0 = 不限制）
 
 	// 第三方认证来源默认授予配置

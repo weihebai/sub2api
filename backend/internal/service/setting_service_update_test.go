@@ -345,6 +345,38 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 	require.Nil(t, repo.updates)
 }
 
+func TestSettingService_UpdateSettings_DefaultAPIKeyGroups(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	groupReader := &defaultSubGroupReaderStub{
+		byID: map[int64]*Group{
+			11: {ID: 11, Status: StatusActive, SubscriptionType: SubscriptionTypeStandard},
+			12: {ID: 12, Status: StatusActive, SubscriptionType: SubscriptionTypeStandard},
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+	svc.SetDefaultSubscriptionGroupReader(groupReader)
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{DefaultAPIKeyGroups: []int64{11, 12, 11, 0}})
+	require.NoError(t, err)
+	require.Equal(t, `[11,12]`, repo.updates[SettingKeyDefaultAPIKeyGroups])
+}
+
+func TestSettingService_UpdateSettings_DefaultAPIKeyGroups_RejectsSubscriptionOrInactiveGroup(t *testing.T) {
+	for _, group := range []*Group{
+		{ID: 11, Status: StatusActive, SubscriptionType: SubscriptionTypeSubscription},
+		{ID: 12, Status: StatusDisabled, SubscriptionType: SubscriptionTypeStandard},
+	} {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		svc.SetDefaultSubscriptionGroupReader(&defaultSubGroupReaderStub{byID: map[int64]*Group{group.ID: group}})
+
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{DefaultAPIKeyGroups: []int64{group.ID}})
+		require.Error(t, err)
+		require.Equal(t, "DEFAULT_API_KEY_GROUP_INVALID", infraerrors.Reason(err))
+		require.Nil(t, repo.updates)
+	}
+}
+
 func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Normalized(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})

@@ -179,6 +179,7 @@ type SystemSettings struct {
 	AdminRechargeRebateEnabled   bool
 	DefaultUserRPMLimit          int
 	DefaultSubscriptions         []DefaultSubscriptionSetting
+	DefaultAPIKeyGroups          []int64
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`

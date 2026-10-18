@@ -94,6 +94,10 @@ var (
 		"DEFAULT_SUBSCRIPTION_GROUP_DUPLICATE",
 		"default subscription group cannot be duplicated",
 	)
+	ErrDefaultAPIKeyGroupInvalid = infraerrors.BadRequest(
+		"DEFAULT_API_KEY_GROUP_INVALID",
+		"default api key group must exist, be active, and not require a subscription",
+	)
 )
 
 type SettingRepository interface {

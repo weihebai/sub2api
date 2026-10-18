@@ -179,6 +179,7 @@ type UpdateSettingsRequest struct {
 	AdminRechargeRebateEnabled                *bool                             `json:"affiliate_admin_recharge_enabled"`
 	DefaultUserRPMLimit                       int                               `json:"default_user_rpm_limit"`
 	DefaultSubscriptions                      []dto.DefaultSubscriptionSetting  `json:"default_subscriptions"`
+	DefaultAPIKeyGroups                       []int64                           `json:"default_api_key_groups"`
 	AuthSourceDefaultEmailBalance             *float64                          `json:"auth_source_default_email_balance"`
 	AuthSourceDefaultEmailConcurrency         *int                              `json:"auth_source_default_email_concurrency"`
 	AuthSourceDefaultEmailSubscriptions       *[]dto.DefaultSubscriptionSetting `json:"auth_source_default_email_subscriptions"`
@@ -301,17 +302,17 @@ type UpdateSettingsRequest struct {
 	AccountQuotaNotifyEmails        *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
 
 	// Payment configuration (integrated into settings, full replace)
-	PaymentEnabled                   *bool    `json:"payment_enabled"`
-	PaymentMinAmount                 *float64 `json:"payment_min_amount"`
-	PaymentMaxAmount                 *float64 `json:"payment_max_amount"`
-	PaymentDailyLimit                *float64 `json:"payment_daily_limit"`
-	PaymentOrderTimeoutMin           *int     `json:"payment_order_timeout_minutes"`
-	PaymentMaxPendingOrders          *int     `json:"payment_max_pending_orders"`
-	PaymentEnabledTypes              []string `json:"payment_enabled_types"`
-	PaymentBalanceDisabled           *bool    `json:"payment_balance_disabled"`
-	PaymentBalanceRechargeMultiplier *float64 `json:"payment_balance_recharge_multiplier"`
-	PaymentSubscriptionUSDToCNYRate  *float64 `json:"payment_subscription_usd_to_cny_rate"`
-	PaymentRechargeFeeRate           *float64 `json:"payment_recharge_fee_rate"`
+	PaymentEnabled                   *bool      `json:"payment_enabled"`
+	PaymentMinAmount                 *float64   `json:"payment_min_amount"`
+	PaymentMaxAmount                 *float64   `json:"payment_max_amount"`
+	PaymentDailyLimit                *float64   `json:"payment_daily_limit"`
+	PaymentOrderTimeoutMin           *int       `json:"payment_order_timeout_minutes"`
+	PaymentMaxPendingOrders          *int       `json:"payment_max_pending_orders"`
+	PaymentEnabledTypes              []string   `json:"payment_enabled_types"`
+	PaymentBalanceDisabled           *bool      `json:"payment_balance_disabled"`
+	PaymentBalanceRechargeMultiplier *float64   `json:"payment_balance_recharge_multiplier"`
+	PaymentSubscriptionUSDToCNYRate  *float64   `json:"payment_subscription_usd_to_cny_rate"`
+	PaymentRechargeFeeRate           *float64   `json:"payment_recharge_fee_rate"`
 	PaymentQuickAmounts              *[]float64 `json:"payment_quick_amounts"`
 	// nil 表示不更新；空数组表示清空阶梯
 	PaymentRechargeBonusTiers  *[]dto.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
@@ -1665,6 +1666,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AdminRechargeRebateEnabled:             adminRechargeRebateEnabled,
 		DefaultUserRPMLimit:                    req.DefaultUserRPMLimit,
 		DefaultSubscriptions:                   defaultSubscriptions,
+		DefaultAPIKeyGroups:                    service.NormalizeDefaultAPIKeyGroups(req.DefaultAPIKeyGroups),
 		EnableModelFallback:                    req.EnableModelFallback,
 		FallbackModelAnthropic:                 req.FallbackModelAnthropic,
 		FallbackModelOpenAI:                    req.FallbackModelOpenAI,
@@ -2330,6 +2332,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AdminRechargeRebateEnabled:                             updatedSettings.AdminRechargeRebateEnabled,
 		DefaultUserRPMLimit:                                    updatedSettings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   updatedDefaultSubscriptions,
+		DefaultAPIKeyGroups:                                    updatedSettings.DefaultAPIKeyGroups,
 		EnableModelFallback:                                    updatedSettings.EnableModelFallback,
 		FallbackModelAnthropic:                                 updatedSettings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                                    updatedSettings.FallbackModelOpenAI,

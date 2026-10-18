@@ -174,6 +174,7 @@ type SystemSettings struct {
 	AdminRechargeRebateEnabled   bool                         `json:"affiliate_admin_recharge_enabled"`
 	DefaultUserRPMLimit          int                          `json:"default_user_rpm_limit"`
 	DefaultSubscriptions         []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultAPIKeyGroups          []int64                      `json:"default_api_key_groups"`
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -268,17 +269,17 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string   `json:"openai_advanced_scheduler_effective_weight_session_sticky"`
 
 	// Payment configuration
-	PaymentEnabled                   bool     `json:"payment_enabled"`
-	PaymentMinAmount                 float64  `json:"payment_min_amount"`
-	PaymentMaxAmount                 float64  `json:"payment_max_amount"`
-	PaymentDailyLimit                float64  `json:"payment_daily_limit"`
-	PaymentOrderTimeoutMin           int      `json:"payment_order_timeout_minutes"`
-	PaymentMaxPendingOrders          int      `json:"payment_max_pending_orders"`
-	PaymentEnabledTypes              []string `json:"payment_enabled_types"`
-	PaymentBalanceDisabled           bool     `json:"payment_balance_disabled"`
-	PaymentBalanceRechargeMultiplier float64  `json:"payment_balance_recharge_multiplier"`
-	PaymentSubscriptionUSDToCNYRate  float64  `json:"payment_subscription_usd_to_cny_rate"`
-	PaymentRechargeFeeRate           float64  `json:"payment_recharge_fee_rate"`
+	PaymentEnabled                   bool      `json:"payment_enabled"`
+	PaymentMinAmount                 float64   `json:"payment_min_amount"`
+	PaymentMaxAmount                 float64   `json:"payment_max_amount"`
+	PaymentDailyLimit                float64   `json:"payment_daily_limit"`
+	PaymentOrderTimeoutMin           int       `json:"payment_order_timeout_minutes"`
+	PaymentMaxPendingOrders          int       `json:"payment_max_pending_orders"`
+	PaymentEnabledTypes              []string  `json:"payment_enabled_types"`
+	PaymentBalanceDisabled           bool      `json:"payment_balance_disabled"`
+	PaymentBalanceRechargeMultiplier float64   `json:"payment_balance_recharge_multiplier"`
+	PaymentSubscriptionUSDToCNYRate  float64   `json:"payment_subscription_usd_to_cny_rate"`
+	PaymentRechargeFeeRate           float64   `json:"payment_recharge_fee_rate"`
 	PaymentQuickAmounts              []float64 `json:"payment_quick_amounts"`
 	// 充值赠送阶梯与活动文案
 	PaymentRechargeBonusTiers  []RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
