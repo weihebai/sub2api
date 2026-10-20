@@ -2922,9 +2922,21 @@ func (r *stubSettingRepo) SetMultiple(ctx context.Context, settings map[string]s
 }
 
 func (r *stubSettingRepo) GetAll(ctx context.Context) (map[string]string, error) {
-	out := make(map[string]string, len(r.all))
+	out := make(map[string]string, len(r.all)+2)
 	for k, v := range r.all {
 		out[k] = v
+	}
+	// Real repositories fall back to the registered default when a key was never
+	// written, and the settings view parses those defaults (an empty string makes
+	// JSON-backed fields such as default_api_key_groups decode to nil). Mirror
+	// that here so the contract reflects production instead of stub internals.
+	for _, key := range []string{
+		service.SettingKeyDefaultAPIKeyGroups,
+		service.SettingKeyDefaultSubscriptions,
+	} {
+		if _, ok := out[key]; !ok {
+			out[key] = "[]"
+		}
 	}
 	return out, nil
 }

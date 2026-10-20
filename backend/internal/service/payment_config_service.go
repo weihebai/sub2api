@@ -304,9 +304,18 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 	return cfg
 }
 
+// DefaultPaymentQuickAmounts returns the preset top-up amounts used when the
+// operator has not configured any, so callers that render payment config
+// without a stored setting (for example the admin settings endpoint when the
+// payment service is absent) still report the canonical defaults instead of
+// null.
+func DefaultPaymentQuickAmounts() []float64 {
+	return []float64{50, 100, 300, 500, 1000, 2000, 3000, 5000}
+}
+
 func parsePaymentQuickAmounts(raw string) []float64 {
 	if raw == "" {
-		return []float64{50, 100, 300, 500, 1000, 2000, 3000, 5000}
+		return DefaultPaymentQuickAmounts()
 	}
 	var amounts []float64
 	if err := json.Unmarshal([]byte(raw), &amounts); err != nil {

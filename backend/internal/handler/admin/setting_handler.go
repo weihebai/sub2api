@@ -128,7 +128,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		paymentCfg, _ = h.paymentConfigService.GetPaymentConfig(c.Request.Context())
 	}
 	if paymentCfg == nil {
-		paymentCfg = &service.PaymentConfig{}
+		// No payment service wired (only in tests): report the same defaults the
+		// service would parse from an empty store rather than nulls.
+		paymentCfg = &service.PaymentConfig{QuickAmounts: service.DefaultPaymentQuickAmounts()}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
