@@ -136,6 +136,9 @@ type CreateAccountRequest struct {
 	ExpiresAt               *int64         `json:"expires_at"`
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
+	BalanceProbeEnabled     *bool          `json:"upstream_balance_probe_enabled"`
+	NewAPIAccessToken       string         `json:"newapi_access_token"`
+	NewAPIAccessTokenUserID string         `json:"newapi_access_token_user_id"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
 }
 
@@ -158,6 +161,9 @@ type UpdateAccountRequest struct {
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
 	RateSyncEnabled         *bool          `json:"upstream_billing_rate_sync_enabled"`
+	BalanceProbeEnabled     *bool          `json:"upstream_balance_probe_enabled"`
+	NewAPIAccessToken       string         `json:"newapi_access_token"`
+	NewAPIAccessTokenUserID string         `json:"newapi_access_token_user_id"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
 }
 
@@ -1058,6 +1064,9 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			ExpiresAt:             req.ExpiresAt,
 			AutoPauseOnExpired:    req.AutoPauseOnExpired,
 			ProbeEnabled:          req.ProbeEnabled,
+			BalanceProbeEnabled:   req.BalanceProbeEnabled,
+			NewAPIAccessToken:     req.NewAPIAccessToken,
+			NewAPIAccessTokenUserID: req.NewAPIAccessTokenUserID,
 			SkipMixedChannelCheck: skipCheck,
 		})
 		if execErr != nil {
@@ -1191,6 +1200,9 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		AutoPauseOnExpired:    req.AutoPauseOnExpired,
 		ProbeEnabled:          req.ProbeEnabled,
 		RateSyncEnabled:       req.RateSyncEnabled,
+		BalanceProbeEnabled:   req.BalanceProbeEnabled,
+		NewAPIAccessToken:     req.NewAPIAccessToken,
+		NewAPIAccessTokenUserID: req.NewAPIAccessTokenUserID,
 		SkipMixedChannelCheck: skipCheck,
 	})
 	if err != nil {

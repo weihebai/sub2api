@@ -12,6 +12,20 @@ func TestRedactCredentials_NilInput(t *testing.T) {
 	require.Nil(t, status)
 }
 
+// new-api 访问令牌能读取站点账户余额与个人资料，等同凭据，绝不允许出现在
+// 响应里——只暴露 has_newapi_access_token 状态位。
+func TestRedactCredentials_StripsNewAPIAccessToken(t *testing.T) {
+	out, status := RedactCredentials(map[string]any{
+		"newapi_access_token": "user-access-secret",
+		"base_url":            "https://relay.example.com",
+	})
+
+	require.NotContains(t, out, "newapi_access_token")
+	require.NotContains(t, out, "user-access-secret")
+	require.Equal(t, "https://relay.example.com", out["base_url"])
+	require.True(t, status["has_newapi_access_token"])
+}
+
 func TestRedactCredentials_StripsSensitiveKeysAndReportsStatus(t *testing.T) {
 	in := map[string]any{
 		"refresh_token":         "rt-secret",

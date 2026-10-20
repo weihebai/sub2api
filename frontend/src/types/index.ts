@@ -1124,6 +1124,53 @@ export interface UpstreamBillingProbeResult {
   error?: string
 }
 
+export type UpstreamBalanceKind = 'sub2api' | 'openai_billing' | 'newapi_token'
+
+export interface UpstreamBalanceData {
+  kind: UpstreamBalanceKind
+  // Key-scoped remaining credit in USD; absent when the upstream reports an
+  // unlimited quota (new-api sentinel) instead of a real balance.
+  remaining_usd?: number
+  total_usd?: number
+  used_usd?: number
+  // sub2api dialect only: usage mode ("quota_limited" | "unrestricted").
+  mode?: string
+  quota_limit_usd?: number
+  quota_used_usd?: number
+  // new-api token dialect only.
+  source?: 'token_quota' | 'user_quota'
+  unlimited?: boolean
+  token_name?: string
+  quota_per_unit?: number
+  // new-api billing dialect: the upstream's own billing figure. Its unit is
+  // site-specific (not USD), so it is displayed verbatim and labelled as such.
+  upstream_used_raw?: number
+  observed_at: string
+}
+
+export interface UpstreamBalanceProbeSnapshot {
+  status: UpstreamBillingProbeStatus
+  data?: UpstreamBalanceData
+  received_at?: string
+  fresh_until?: string
+  last_attempt_at: string
+  next_probe_at: string
+  failure_count?: number
+  http_status?: number
+  last_error?: string
+}
+
+export interface UpstreamBalanceProbeResult {
+  account_id: number
+  snapshot?: UpstreamBalanceProbeSnapshot
+  error?: string
+}
+
+export interface UpstreamBalanceProbeSettings {
+  enabled: boolean
+  interval_minutes: number
+}
+
 export interface UpstreamBillingRateSnapshotItem {
   account_id: number
   snapshot?: UpstreamBillingProbeSnapshot | null
@@ -1247,6 +1294,8 @@ export interface Account {
     upstream_billing_probe_enabled?: boolean
     upstream_billing_rate_sync_enabled?: boolean
     upstream_billing_probe?: UpstreamBillingProbeSnapshot
+    upstream_balance_probe?: UpstreamBalanceProbeSnapshot
+    upstream_balance_probe_enabled?: boolean
     codex_reset_credit_snapshot?: {
       available_count?: number
       credits?: { expires_at?: string }[]
@@ -1563,6 +1612,9 @@ export interface CreateAccountRequest {
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
+  upstream_balance_probe_enabled?: boolean
+  newapi_access_token?: string
+  newapi_access_token_user_id?: string
   confirm_mixed_channel_risk?: boolean
 }
 
@@ -1584,6 +1636,9 @@ export interface UpdateAccountRequest {
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
   upstream_billing_rate_sync_enabled?: boolean
+  upstream_balance_probe_enabled?: boolean
+  newapi_access_token?: string
+  newapi_access_token_user_id?: string
   confirm_mixed_channel_risk?: boolean
 }
 

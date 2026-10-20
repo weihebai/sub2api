@@ -1579,6 +1579,53 @@
           />
         </div>
 
+        <!-- 上游余额自动刷新 -->
+        <div
+          class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 dark:border-dark-600"
+        >
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.upstreamBalance.autoProbe') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.upstreamBalance.autoProbeHint') }}
+            </p>
+          </div>
+          <Toggle
+            v-model="upstreamBalanceAutoProbeEnabled"
+            data-testid="upstream-balance-auto-probe"
+            :aria-label="t('admin.accounts.upstreamBalance.autoProbe')"
+          />
+        </div>
+
+        <!-- new-api 访问令牌（可选）：用于读取该站点账户的真实余额 -->
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+          <label class="input-label mb-0">{{ t('admin.accounts.upstreamBalance.accessToken') }}</label>
+          <p class="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.upstreamBalance.accessTokenHint') }}
+          </p>
+          <div class="grid gap-2 sm:grid-cols-[1fr_9rem]">
+            <input
+              v-model.trim="newapiAccessToken"
+              type="password"
+              class="input"
+              autocomplete="off"
+              :placeholder="t('admin.accounts.upstreamBalance.accessTokenPlaceholder')"
+              data-testid="newapi-access-token"
+            />
+            <input
+              v-model.trim="newapiAccessTokenUserId"
+              type="text"
+              class="input"
+              inputmode="numeric"
+              autocomplete="off"
+              :placeholder="t('admin.accounts.upstreamBalance.accessTokenUserIdPlaceholder')"
+              data-testid="newapi-access-token-user-id"
+            />
+          </div>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.upstreamBalance.accessTokenLinkHint') }}
+          </p>
+        </div>
+
         <!-- Gemini API Key tier selection -->
         <div v-if="form.platform === 'gemini' && isOfficialGeminiBaseUrl(apiKeyBaseUrl)">
           <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
@@ -4395,6 +4442,13 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
 const upstreamBillingAutoProbeEnabled = ref(true)
+// 上游余额自动刷新：余额是只读展示，默认跟随开关但不写倍率。
+const upstreamBalanceAutoProbeEnabled = ref(true)
+// new-api 系上游的「访问令牌」（个人资料 → 安全 → 访问令牌）。
+// 生成 API Key 的地址与能读取用户余额的接口需要不同的凭据：裸 API Key 访问
+// /api/user/self 只会得到 401，必须用访问令牌 + New-API-User 头。
+const newapiAccessToken = ref('')
+const newapiAccessTokenUserId = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
 // 多协议供应商（国产厂商与走通用表单的供应商）的接入模式；OpenCode 用 openCodeAccountMode。
@@ -6222,6 +6276,9 @@ const handleSubmit = async () => {
     group_ids: form.group_ids,
     extra: withUpstreamRequestIdHeader(extra),
     upstream_billing_probe_enabled: upstreamBillingAutoProbeEnabled.value,
+    upstream_balance_probe_enabled: upstreamBalanceAutoProbeEnabled.value,
+    newapi_access_token: newapiAccessToken.value || undefined,
+    newapi_access_token_user_id: newapiAccessTokenUserId.value || undefined,
     auto_pause_on_expired: autoPauseOnExpired.value
   })
 }
@@ -6353,6 +6410,9 @@ const createAccountAndFinish = async (
     // 上游倍率探测对全部 API-key 平台开放（antigravity upstream 走本 helper）；
     // 非 apikey 类型（bedrock/oauth）不传，后端不动作。
     upstream_billing_probe_enabled: type === 'apikey' ? upstreamBillingAutoProbeEnabled.value : undefined,
+    upstream_balance_probe_enabled: type === 'apikey' ? upstreamBalanceAutoProbeEnabled.value : undefined,
+    newapi_access_token: type === 'apikey' ? newapiAccessToken.value || undefined : undefined,
+    newapi_access_token_user_id: type === 'apikey' ? newapiAccessTokenUserId.value || undefined : undefined,
     auto_pause_on_expired: autoPauseOnExpired.value
   })
 }

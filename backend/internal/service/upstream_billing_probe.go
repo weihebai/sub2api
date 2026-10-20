@@ -316,9 +316,13 @@ func (s *UpstreamBillingProbeService) Start() {
 		return
 	}
 	s.started = true
-	s.wg.Add(1)
+	s.wg.Add(2)
 	s.mu.Unlock()
 	go s.runLoop()
+	go func() {
+		defer s.wg.Done()
+		s.startUpstreamBalanceLoop(s.parentCtx)
+	}()
 }
 
 func (s *UpstreamBillingProbeService) Stop() {

@@ -411,6 +411,13 @@ type CreateAccountInput struct {
 	ExpiresAt          *int64
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
+	// BalanceProbeEnabled opts the account into the background balance runner.
+	BalanceProbeEnabled *bool
+	// NewAPIAccessToken / NewAPIAccessTokenUserID optionally carry a new-api
+	// "access token" so the balance probe can read the site account's real
+	// wallet balance (an API key cannot: /api/user/self requires a session).
+	NewAPIAccessToken       string
+	NewAPIAccessTokenUserID string
 	// SkipDefaultGroupBind prevents auto-binding to platform default group when GroupIDs is empty.
 	SkipDefaultGroupBind bool
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
@@ -444,6 +451,9 @@ type UpdateAccountInput struct {
 	AutoPauseOnExpired    *bool
 	ProbeEnabled          *bool
 	RateSyncEnabled       *bool
+	BalanceProbeEnabled   *bool
+	NewAPIAccessToken     string
+	NewAPIAccessTokenUserID string
 	SkipMixedChannelCheck bool // 跳过混合渠道检查（用户已确认风险）
 }
 

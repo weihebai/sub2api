@@ -184,6 +184,7 @@
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
           @probe-upstream-billing="handleBulkProbeUpstreamBilling"
+          @probe-upstream-balance="handleBulkProbeUpstreamBalance"
           @edit-selected="openBulkEditSelected"
           @edit-filtered="openBulkEditFiltered"
           @clear="clearSelection"
@@ -348,18 +349,12 @@
             </div>
           </template>
           <template #cell-rate_multiplier="{ row }">
-            <span class="inline-flex items-center gap-1 text-sm font-mono text-gray-700 dark:text-gray-300">
-              <span>{{ formatMultiplier(row.rate_multiplier ?? 1) }}x</span>
-              <span
-                v-if="row.extra?.upstream_billing_rate_sync_enabled === true"
-                class="inline-flex cursor-help text-emerald-600 dark:text-emerald-400"
-                :aria-label="t('admin.accounts.upstreamBilling.syncedRateTooltip')"
-                :title="t('admin.accounts.upstreamBilling.syncedRateTooltip')"
-                data-testid="account-rate-sync-indicator"
-              >
-                <Icon name="sync" size="xs" />
-              </span>
-            </span>
+            <AccountRateMultiplierCell
+              :account="row"
+              @updated="handleAccountUpdated"
+              @error="(message: string) => appStore.showError(message)"
+              @blocked="(message: string) => appStore.showWarning(message)"
+            />
           </template>
           <template #header-upstream_billing_rate="{ column }">
             <div class="flex items-center gap-1">
@@ -376,6 +371,16 @@
               :now="upstreamBillingNow"
               :probing="probingUpstreamBilling.has(row.id)"
               @probe="handleProbeUpstreamBilling(row)"
+            />
+          </template>
+          <template #cell-upstream_balance="{ row }">
+            <UpstreamBalanceCell
+              :account="row"
+              :now="upstreamBalanceNow"
+              :probing="probingUpstreamBalance.has(row.id)"
+              :saving-auto="savingUpstreamBalanceAuto.has(row.id)"
+              @probe="handleProbeUpstreamBalance(row)"
+              @toggle-auto="handleToggleUpstreamBalanceAuto(row, $event)"
             />
           </template>
           <template #cell-priority="{ row }">
@@ -524,7 +529,9 @@ import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vu
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import UpstreamBillingRateCell from '@/components/account/UpstreamBillingRateCell.vue'
+import UpstreamBalanceCell from '@/components/account/UpstreamBalanceCell.vue'
 import AccountPriorityCell from '@/components/account/AccountPriorityCell.vue'
+import AccountRateMultiplierCell from '@/components/account/AccountRateMultiplierCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
@@ -536,8 +543,7 @@ import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { sanitizeUrl } from '@/utils/url'
 import { getFloatingPanelPosition } from '@/utils/floatingPanel'
-import { formatMultiplier } from '@/utils/formatters'
-import type { Account, AccountListItem, AccountPlatform, AccountSchedulerGroupScore, AccountType, AccountUsageInfo, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, UpstreamBillingProbeSnapshot } from '@/types'
+import type { Account, AccountListItem, AccountPlatform, AccountSchedulerGroupScore, AccountType, AccountUsageInfo, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, UpstreamBillingProbeSnapshot, UpstreamBalanceProbeSnapshot } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -622,12 +628,16 @@ const togglingSchedulable = ref<number | null>(null)
 const menu = reactive<{show:boolean, acc:Account|null, anchorRect:DOMRect|null}>({ show: false, acc: null, anchorRect: null })
 const exportingData = ref(false)
 const probingUpstreamBilling = reactive(new Set<number>())
+const probingUpstreamBalance = reactive(new Set<number>())
+const savingUpstreamBalanceAuto = reactive(new Set<number>())
+const upstreamBalanceNow = ref(Date.now())
 const upstreamBillingProbeGloballyEnabled = ref<boolean | undefined>(undefined)
 const upstreamBillingNow = ref(Date.now())
 const upstreamBillingRateETag = ref<string | null>(null)
 const upstreamBillingRateRefreshing = ref(false)
 let upstreamBillingRateAbortController: AbortController | null = null
 useIntervalFn(() => { upstreamBillingNow.value = Date.now() }, 60_000)
+useIntervalFn(() => { upstreamBalanceNow.value = Date.now() }, 60_000)
 
 // Account tools dropdown
 const showAccountToolsDropdown = ref(false)
@@ -1805,6 +1815,7 @@ const allColumns = computed(() => {
     { key: 'scheduler_score', label: t('admin.accounts.columns.schedulerScore'), sortable: false },
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },
     { key: 'upstream_billing_rate', label: t('admin.accounts.columns.upstreamBillingRate'), sortable: true },
+    { key: 'upstream_balance', label: t('admin.accounts.columns.upstreamBalance'), sortable: false },
     { key: 'last_used_at', label: t('admin.accounts.columns.lastUsed'), sortable: true },
     { key: 'created_at', label: t('admin.accounts.columns.createdAt'), sortable: true },
     { key: 'expires_at', label: t('admin.accounts.columns.expiresAt'), sortable: true },
@@ -2251,6 +2262,73 @@ const handleProbeUpstreamBilling = async (account: Account) => {
     appStore.showError(extractApiErrorMessage(error, t('admin.accounts.upstreamBilling.probeFailed')))
   } finally {
     probingUpstreamBilling.delete(account.id)
+  }
+}
+const patchUpstreamBalanceSnapshot = (accountID: number, snapshot: UpstreamBalanceProbeSnapshot) => {
+  const account = accounts.value.find(item => item.id === accountID)
+  if (!account) return
+  upstreamBalanceNow.value = Date.now()
+  patchAccountInList({
+    ...account,
+    extra: { ...account.extra, upstream_balance_probe: snapshot }
+  })
+}
+const handleProbeUpstreamBalance = async (account: Account) => {
+  if (probingUpstreamBalance.has(account.id)) return
+  probingUpstreamBalance.add(account.id)
+  try {
+    const result = await adminAPI.accounts.probeUpstreamBalance(account.id)
+    if (result.snapshot) patchUpstreamBalanceSnapshot(account.id, result.snapshot)
+  } catch (error) {
+    console.error('Failed to probe upstream balance:', error)
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.upstreamBalance.probeFailed')))
+  } finally {
+    probingUpstreamBalance.delete(account.id)
+  }
+}
+const handleToggleUpstreamBalanceAuto = async (account: Account, enabled: boolean) => {
+  if (savingUpstreamBalanceAuto.has(account.id)) return
+  savingUpstreamBalanceAuto.add(account.id)
+  try {
+    await adminAPI.accounts.setUpstreamBalanceProbeEnabled(account.id, enabled)
+    patchAccountInList({
+      ...account,
+      extra: { ...account.extra, upstream_balance_probe_enabled: enabled }
+    })
+  } catch (error) {
+    console.error('Failed to toggle upstream balance auto refresh:', error)
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.upstreamBalance.autoProbeFailed')))
+  } finally {
+    savingUpstreamBalanceAuto.delete(account.id)
+  }
+}
+const handleBulkProbeUpstreamBalance = async () => {
+  const accountIDs = Array.from(selIds.value)
+  if (accountIDs.length === 0) {
+    appStore.showError(t('admin.accounts.upstreamBalance.batchEmpty'))
+    return
+  }
+  if (accountIDs.length > 20) {
+    appStore.showError(t('admin.accounts.upstreamBalance.batchLimit'))
+    return
+  }
+  accountIDs.forEach(id => probingUpstreamBalance.add(id))
+  try {
+    const results = await adminAPI.accounts.probeUpstreamBalanceBatch(accountIDs)
+    results.forEach(result => {
+      if (result.snapshot) patchUpstreamBalanceSnapshot(result.account_id, result.snapshot)
+    })
+    const failed = results.filter(result => result.error).length
+    if (failed > 0) {
+      appStore.showError(t('admin.accounts.upstreamBalance.batchPartial', { success: results.length - failed, failed }))
+    } else {
+      appStore.showSuccess(t('admin.accounts.upstreamBalance.batchCompleted', { count: results.length }))
+    }
+  } catch (error) {
+    console.error('Failed to probe upstream balance in batch:', error)
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.upstreamBalance.probeFailed')))
+  } finally {
+    accountIDs.forEach(id => probingUpstreamBalance.delete(id))
   }
 }
 const handleAccountUpdated = (updatedAccount: Account) => {

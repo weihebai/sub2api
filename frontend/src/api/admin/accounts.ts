@@ -26,6 +26,8 @@ import type {
   UpstreamBillingProbeResult,
   UpstreamBillingProbeSettings,
   UpstreamBillingRatesResponse,
+  UpstreamBalanceProbeResult,
+  UpstreamBalanceProbeSettings,
   OllamaCloudUsageSettings,
   OllamaCloudUsageState,
   GrokMediaEligibilityMode,
@@ -1055,6 +1057,38 @@ export async function probeUpstreamBillingBatch(accountIds: number[]): Promise<U
   return data.results
 }
 
+export async function probeUpstreamBalance(id: number): Promise<UpstreamBalanceProbeResult> {
+  const { data } = await apiClient.post<UpstreamBalanceProbeResult>(`/admin/accounts/${id}/upstream-balance-probe`)
+  return data
+}
+
+export async function probeUpstreamBalanceBatch(accountIds: number[]): Promise<UpstreamBalanceProbeResult[]> {
+  const { data } = await apiClient.post<{ results: UpstreamBalanceProbeResult[] }>(
+    '/admin/accounts/upstream-balance-probe/batch',
+    { account_ids: accountIds }
+  )
+  return data.results
+}
+
+export async function getUpstreamBalanceProbeSettings(): Promise<UpstreamBalanceProbeSettings> {
+  const { data } = await apiClient.get<UpstreamBalanceProbeSettings>('/admin/accounts/upstream-balance-probe/settings')
+  return data
+}
+
+export async function updateUpstreamBalanceProbeSettings(
+  settings: UpstreamBalanceProbeSettings
+): Promise<UpstreamBalanceProbeSettings> {
+  const { data } = await apiClient.put<UpstreamBalanceProbeSettings>(
+    '/admin/accounts/upstream-balance-probe/settings',
+    settings
+  )
+  return data
+}
+
+export async function setUpstreamBalanceProbeEnabled(id: number, enabled: boolean): Promise<void> {
+  await apiClient.put(`/admin/accounts/${id}/upstream-balance-probe`, { enabled })
+}
+
 export async function getOllamaCloudUsageSettings(): Promise<OllamaCloudUsageSettings> {
   const { data } = await apiClient.get<OllamaCloudUsageSettings>('/admin/accounts/ollama-cloud-usage/settings')
   return data
@@ -1188,6 +1222,11 @@ export const accountsAPI = {
   setUpstreamBillingProbeEnabled,
   probeUpstreamBilling,
   probeUpstreamBillingBatch,
+  probeUpstreamBalance,
+  probeUpstreamBalanceBatch,
+  getUpstreamBalanceProbeSettings,
+  updateUpstreamBalanceProbeSettings,
+  setUpstreamBalanceProbeEnabled,
   getOllamaCloudUsageSettings,
   updateOllamaCloudUsageSettings,
   getOllamaCloudUsage,

@@ -692,6 +692,16 @@
                 {{ t('admin.users.apiKeys') }}
               </button>
 
+              <!-- View Usage Records -->
+              <button
+                @click="handleViewUsage(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                data-testid="admin-user-view-usage"
+              >
+                <Icon name="chart" size="sm" class="text-gray-400" :stroke-width="2" />
+                {{ t('admin.users.viewUsage') }}
+              </button>
+
               <!-- Allowed Groups -->
               <button
                 @click="handleAllowedGroups(user); closeActionMenu()"
@@ -794,6 +804,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
@@ -832,6 +843,9 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+// vue-router 4 用 Symbol 作为注入 key，inject('router') 拿不到实例，
+// 必须用 useRouter()。
+const router = useRouter()
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>
@@ -1769,6 +1783,14 @@ const handleToggleStatus = async (user: AdminUser) => {
 const handleViewApiKeys = (user: AdminUser) => {
   viewingUser.value = user
   showApiKeysModal.value = true
+}
+
+// 跳转到管理端使用记录页并按该用户预筛选（UsageView 读取 query.user_id）。
+const handleViewUsage = (user: AdminUser) => {
+  void router.push({
+    path: '/admin/usage',
+    query: { user_id: String(user.id) }
+  })
 }
 
 const closeApiKeysModal = () => {

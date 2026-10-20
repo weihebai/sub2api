@@ -2109,6 +2109,59 @@
         />
       </div>
 
+      <!-- 上游余额自动刷新 -->
+      <div
+        v-if="account?.type === 'apikey'"
+        class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div>
+          <label class="input-label mb-0">{{ t('admin.accounts.upstreamBalance.autoProbe') }}</label>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.upstreamBalance.autoProbeHint') }}
+          </p>
+        </div>
+        <Toggle
+          :model-value="upstreamBalanceAutoProbeEnabled"
+          data-testid="upstream-balance-auto-probe"
+          :aria-label="t('admin.accounts.upstreamBalance.autoProbe')"
+          @update:model-value="handleUpstreamBalanceAutoProbeChange"
+        />
+      </div>
+
+      <!-- new-api 访问令牌（可选）：用于读取该站点账户的真实余额 -->
+      <div
+        v-if="account?.type === 'apikey'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+        data-testid="newapi-access-token-section"
+      >
+        <label class="input-label mb-0">{{ t('admin.accounts.upstreamBalance.accessToken') }}</label>
+        <p class="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.upstreamBalance.accessTokenHint') }}
+        </p>
+        <div class="grid gap-2 sm:grid-cols-[1fr_9rem]">
+          <input
+            v-model.trim="newapiAccessToken"
+            type="password"
+            class="input"
+            autocomplete="off"
+            :placeholder="t('admin.accounts.upstreamBalance.accessTokenPlaceholder')"
+            data-testid="newapi-access-token"
+          />
+          <input
+            v-model.trim="newapiAccessTokenUserId"
+            type="text"
+            class="input"
+            inputmode="numeric"
+            autocomplete="off"
+            :placeholder="t('admin.accounts.upstreamBalance.accessTokenUserIdPlaceholder')"
+            data-testid="newapi-access-token-user-id"
+          />
+        </div>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.upstreamBalance.accessTokenLinkHint') }}
+        </p>
+      </div>
+
       <OllamaCloudUsageSettings
         v-if="account?.ollama_cloud_usage?.eligible"
         :account="account"
@@ -3781,12 +3834,23 @@ const autoResetCredit5hThreshold = ref(100)
 const autoResetCredit7dThreshold = ref(100)
 const upstreamBillingAutoProbeEnabled = ref(false)
 const upstreamBillingRateSyncEnabled = ref(false)
+// 上游余额自动刷新（只读展示，不影响倍率）。
+const upstreamBalanceAutoProbeEnabled = ref(false)
+// new-api 访问令牌：读取站点账户真实余额需要它（裸 API Key 会 401）。
+const newapiAccessToken = ref('')
+const newapiAccessTokenUserId = ref('')
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 // 上游ID：直接上游声明请求标识的响应头名，留空不记录。
 const upstreamRequestIdHeader = ref('')
 const readUpstreamRequestIdHeader = (extra: unknown): string => {
   const value = (extra as Record<string, unknown> | undefined)?.upstream_request_id_header
   return typeof value === 'string' ? value : ''
+}
+// new-api 的 New-API-User 头需要站点内的数字用户 ID；访问令牌本身不回显，
+// 只回显这个非敏感标识，方便下次编辑时不用重新查。
+const readNewapiAccessTokenUserId = (extra: unknown): string => {
+  const value = (extra as Record<string, unknown> | undefined)?.newapi_access_token_user_id
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
 const antigravityProjectId = ref('')
@@ -4211,6 +4275,10 @@ const handleUpstreamBillingAutoProbeChange = (enabled: boolean) => {
   }
 }
 
+const handleUpstreamBalanceAutoProbeChange = (enabled: boolean) => {
+  upstreamBalanceAutoProbeEnabled.value = enabled
+}
+
 const statusOptions = computed(() => {
   const options = [
     { value: 'active', label: t('common.active') },
@@ -4339,6 +4407,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 	autoResetCredit7dThreshold.value =
 		typeof extra?.auto_reset_credit_7d_threshold === 'number' ? extra.auto_reset_credit_7d_threshold * 100 : 100
 	upstreamBillingAutoProbeEnabled.value = extra?.upstream_billing_probe_enabled === true
+	upstreamBalanceAutoProbeEnabled.value = extra?.upstream_balance_probe_enabled === true
+	// 访问令牌不回显（后端只返回 has_newapi_access_token 之类的状态位）。
+	newapiAccessToken.value = ''
+	newapiAccessTokenUserId.value = readNewapiAccessTokenUserId(extra)
   upstreamBillingRateSyncEnabled.value =
     upstreamBillingAutoProbeEnabled.value && extra?.upstream_billing_rate_sync_enabled === true
 
@@ -5357,6 +5429,11 @@ const handleSubmit = async () => {
     if (props.account.type === 'apikey') {
       updatePayload.upstream_billing_probe_enabled = upstreamBillingAutoProbeEnabled.value
       updatePayload.upstream_billing_rate_sync_enabled = upstreamBillingRateSyncEnabled.value
+      updatePayload.upstream_balance_probe_enabled = upstreamBalanceAutoProbeEnabled.value
+      if (newapiAccessToken.value) {
+        updatePayload.newapi_access_token = newapiAccessToken.value
+      }
+      updatePayload.newapi_access_token_user_id = newapiAccessTokenUserId.value || undefined
       if (upstreamBillingRateSyncEnabled.value) {
         delete updatePayload.rate_multiplier
       }
@@ -6026,6 +6103,8 @@ const handleSubmit = async () => {
       if (props.account.type === 'apikey') {
         delete newExtra.upstream_billing_probe_enabled
         delete newExtra.upstream_billing_rate_sync_enabled
+        delete newExtra.upstream_balance_probe_enabled
+        delete newExtra.newapi_access_token_user_id
       }
       // Total quota
       if (editQuotaLimit.value != null && editQuotaLimit.value > 0) {

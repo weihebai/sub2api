@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { AdminUser } from '@/types'
 import UsersView from '../UsersView.vue'
@@ -571,5 +572,78 @@ describe('admin UsersView', () => {
     expect(wrapper.get('[data-test="row-order"]').text()).toBe('refreshed-page-two@example.com')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  // 「查看使用记录」应跳转到管理端使用记录页并带上该用户 ID，
+  // UsageView 会读取 query.user_id 做预筛选。
+  it('navigates to the admin usage page filtered by the selected user', async () => {
+    listUsers.mockResolvedValue({
+      items: [createAdminUser({ id: 77 })],
+      total: 1,
+      page: 1,
+      pages: 1
+    })
+    getAllGroups.mockResolvedValue([])
+    getBatchUsersUsage.mockResolvedValue({})
+    listEnabledDefinitions.mockResolvedValue([])
+    getBatchUserAttributes.mockResolvedValue({})
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div />' } },
+        { path: '/admin/usage', component: { template: '<div />' } }
+      ]
+    })
+    const pushSpy = vi.spyOn(router, 'push')
+    const wrapper = mount(UsersView, {
+      global: {
+        // vue-router 4 通过 Symbol 注入，必须装真实的 router 插件；
+        // 用 createRouter + createMemoryHistory 才能被 useRouter() 取到。
+        plugins: [router],
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: PaginationStub,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: true,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    // 操作菜单默认收起，先点 "更多" 展开。
+    const trigger = wrapper.get('[data-test="actions-77"]').find('.action-menu-trigger')
+    expect(trigger.exists()).toBe(true)
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const usageButton = wrapper
+      .get('[data-testid="admin-user-view-usage"]')
+    await usageButton.trigger('click')
+    await flushPromises()
+
+    expect(pushSpy).toHaveBeenCalledWith({ path: '/admin/usage', query: { user_id: '77' } })
+    // 真实 router 也要落到目标路由上，确认跳转不是静默失败。
+    expect(router.currentRoute.value.path).toBe('/admin/usage')
+    expect(router.currentRoute.value.query.user_id).toBe('77')
   })
 })
