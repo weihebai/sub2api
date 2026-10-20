@@ -62,8 +62,8 @@ type PaymentConfig struct {
 	BalanceDisabled           bool     `json:"balance_disabled"`
 	BalanceRechargeMultiplier float64  `json:"balance_recharge_multiplier"`
 	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
-	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
+	SubscriptionUSDToCNYRate float64   `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate          float64   `json:"recharge_fee_rate"`
 	QuickAmounts             []float64 `json:"quick_amounts"`
 	// RechargeBonusTiers 余额充值优惠阶梯（按 MinAmount 升序）；空表示无优惠。
 	RechargeBonusTiers []RechargeBonusTier `json:"recharge_bonus_tiers"`
@@ -93,17 +93,17 @@ type PaymentConfig struct {
 
 // UpdatePaymentConfigRequest contains fields to update payment configuration.
 type UpdatePaymentConfigRequest struct {
-	Enabled                   *bool    `json:"enabled"`
-	MinAmount                 *float64 `json:"min_amount"`
-	MaxAmount                 *float64 `json:"max_amount"`
-	DailyLimit                *float64 `json:"daily_limit"`
-	OrderTimeoutMin           *int     `json:"order_timeout_minutes"`
-	MaxPendingOrders          *int     `json:"max_pending_orders"`
-	EnabledTypes              []string `json:"enabled_payment_types"`
-	BalanceDisabled           *bool    `json:"balance_disabled"`
-	BalanceRechargeMultiplier *float64 `json:"balance_recharge_multiplier"`
-	SubscriptionUSDToCNYRate  *float64 `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
+	Enabled                   *bool      `json:"enabled"`
+	MinAmount                 *float64   `json:"min_amount"`
+	MaxAmount                 *float64   `json:"max_amount"`
+	DailyLimit                *float64   `json:"daily_limit"`
+	OrderTimeoutMin           *int       `json:"order_timeout_minutes"`
+	MaxPendingOrders          *int       `json:"max_pending_orders"`
+	EnabledTypes              []string   `json:"enabled_payment_types"`
+	BalanceDisabled           *bool      `json:"balance_disabled"`
+	BalanceRechargeMultiplier *float64   `json:"balance_recharge_multiplier"`
+	SubscriptionUSDToCNYRate  *float64   `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate           *float64   `json:"recharge_fee_rate"`
 	QuickAmounts              *[]float64 `json:"quick_amounts"`
 	// RechargeBonusTiers nil 表示不更新；空切片表示清空阶梯。
 	RechargeBonusTiers  *[]RechargeBonusTier `json:"recharge_bonus_tiers"`

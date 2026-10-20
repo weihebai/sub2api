@@ -214,9 +214,9 @@ type UpstreamBalanceProbeSnapshot struct {
 
 // UpstreamBalanceProbeResult is returned by the manual probe endpoints.
 type UpstreamBalanceProbeResult struct {
-	AccountID int64                        `json:"account_id"`
+	AccountID int64                         `json:"account_id"`
 	Snapshot  *UpstreamBalanceProbeSnapshot `json:"snapshot,omitempty"`
-	Error     string                       `json:"error,omitempty"`
+	Error     string                        `json:"error,omitempty"`
 }
 
 type upstreamBalanceProbeSnapshotWriter interface {
@@ -450,7 +450,6 @@ func (s *UpstreamBillingProbeService) probeUpstreamBalanceWithMode(ctx context.C
 	}
 	return snapshot, nil
 }
-
 
 // ProbeUpstreamBalanceAccounts performs a bounded manual batch with the same
 // service-wide concurrency limit as the rate probe.
@@ -760,10 +759,10 @@ func (s *UpstreamBillingProbeService) updateUpstreamBalanceSnapshot(ctx context.
 // top-level "remaining" in USD; wallet mode also exposes "balance".
 func parseUpstreamBalanceSub2APIUsage(body []byte, now time.Time) (map[string]any, bool) {
 	var payload struct {
-		Mode      string          `json:"mode"`
-		Remaining *float64        `json:"remaining"`
-		Balance   *float64        `json:"balance"`
-		IsValid   *bool           `json:"isValid"`
+		Mode      string   `json:"mode"`
+		Remaining *float64 `json:"remaining"`
+		Balance   *float64 `json:"balance"`
+		IsValid   *bool    `json:"isValid"`
 		Quota     *struct {
 			Limit     *float64 `json:"limit"`
 			Used      *float64 `json:"used"`
@@ -781,9 +780,9 @@ func parseUpstreamBalanceSub2APIUsage(body []byte, now time.Time) (map[string]an
 		return nil, false
 	}
 	data := map[string]any{
-		"kind":         UpstreamBalanceKindSub2API,
+		"kind":          UpstreamBalanceKindSub2API,
 		"remaining_usd": *remaining,
-		"observed_at":  now.UTC().Format(time.RFC3339Nano),
+		"observed_at":   now.UTC().Format(time.RFC3339Nano),
 	}
 	if payload.Mode != "" {
 		data["mode"] = payload.Mode
@@ -815,12 +814,12 @@ func parseUpstreamBalanceNewAPIUserSelf(body []byte, now time.Time) (map[string]
 		Success *bool  `json:"success"`
 		Message string `json:"message"`
 		Data    *struct {
-			ID             *float64 `json:"id"`
-			Quota          *float64 `json:"quota"`
-			UsedQuota      *float64 `json:"used_quota"`
-			Username       string   `json:"username"`
-			DisplayName    string   `json:"display_name"`
-			QuotaPerUnit   *float64 `json:"quota_per_unit"`
+			ID           *float64 `json:"id"`
+			Quota        *float64 `json:"quota"`
+			UsedQuota    *float64 `json:"used_quota"`
+			Username     string   `json:"username"`
+			DisplayName  string   `json:"display_name"`
+			QuotaPerUnit *float64 `json:"quota_per_unit"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -842,10 +841,10 @@ func parseUpstreamBalanceNewAPIUserSelf(body []byte, now time.Time) (map[string]
 		return nil, false
 	}
 	data := map[string]any{
-		"kind":          UpstreamBalanceKindNewAPIUser,
-		"remaining_usd": remaining,
+		"kind":           UpstreamBalanceKindNewAPIUser,
+		"remaining_usd":  remaining,
 		"quota_per_unit": unit,
-		"observed_at":   now.UTC().Format(time.RFC3339Nano),
+		"observed_at":    now.UTC().Format(time.RFC3339Nano),
 	}
 	if payload.Data.UsedQuota != nil && finiteNonNegative(*payload.Data.UsedQuota) {
 		data["used_usd"] = *payload.Data.UsedQuota / unit
@@ -956,14 +955,14 @@ func parseUpstreamBalanceTokenUsage(body []byte, quotaPerUnit float64, now time.
 		Code    *bool  `json:"code"`
 		Message string `json:"message"`
 		Data    *struct {
-			Object           string   `json:"object"`
-			Name             string   `json:"name"`
-			TotalGranted     *float64 `json:"total_granted"`
-			TotalUsed        *float64 `json:"total_used"`
-			TotalAvailable   *float64 `json:"total_available"`
-			UnlimitedQuota   bool     `json:"unlimited_quota"`
-			ExpiresAt        *float64 `json:"expires_at"`
-			UserQuota        *struct {
+			Object         string   `json:"object"`
+			Name           string   `json:"name"`
+			TotalGranted   *float64 `json:"total_granted"`
+			TotalUsed      *float64 `json:"total_used"`
+			TotalAvailable *float64 `json:"total_available"`
+			UnlimitedQuota bool     `json:"unlimited_quota"`
+			ExpiresAt      *float64 `json:"expires_at"`
+			UserQuota      *struct {
 				TotalAvailable *float64 `json:"total_available"`
 				TotalUsed      *float64 `json:"total_used"`
 			} `json:"user_quota"`
@@ -983,10 +982,10 @@ func parseUpstreamBalanceTokenUsage(body []byte, quotaPerUnit float64, now time.
 		unit = upstreamBalanceDefaultQuotaPerUnit
 	}
 	data := map[string]any{
-		"kind":             UpstreamBalanceKindNewAPIToken,
-		"observed_at":      now.UTC().Format(time.RFC3339Nano),
-		"unlimited":        payload.Data.UnlimitedQuota,
-		"quota_per_unit":   unit,
+		"kind":           UpstreamBalanceKindNewAPIToken,
+		"observed_at":    now.UTC().Format(time.RFC3339Nano),
+		"unlimited":      payload.Data.UnlimitedQuota,
+		"quota_per_unit": unit,
 	}
 	if payload.Data.Name != "" {
 		data["token_name"] = payload.Data.Name

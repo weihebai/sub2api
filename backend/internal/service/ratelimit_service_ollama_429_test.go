@@ -395,7 +395,11 @@ func TestOllamaProbeCallback_StaleLongDoesNotOverrideNewShort(t *testing.T) {
 	require.Equal(t, 1, scheduler.count())
 
 	// An admin / newer policy re-arms the account to a fresh SHORT cooldown.
-	newShort := time.Now().Add(5 * time.Second)
+	// Use 3s rather than the default 5s fallback cooldown: without a Retry-After
+	// header the trigger schedule applies a 5s fallback, and re-arming to that
+	// same 5s makes the captured floor equal the row value, so the CAS would
+	// pass and mask the stale-callback guard under test.
+	newShort := time.Now().Add(3 * time.Second)
 	repo.mutate(acct.ID, func(a *Account) { a.RateLimitResetAt = ollama429TimePtr(newShort) })
 
 	// The old async result reports a long 7d reset; it must not override.

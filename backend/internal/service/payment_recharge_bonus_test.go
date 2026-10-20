@@ -141,12 +141,13 @@ func TestCalculateRechargeBonusRounding(t *testing.T) {
 	require.Zero(t, calculateRechargeBonus(100, 0))
 	require.Zero(t, calculateRechargeBonus(0, 20))
 
-	// 阈值按支付金额命中，赠送按到账基数计算：1000 CNY × 0.14 = 140 USD，命中 1000 档 30% → 42
+	// 阈值按到账余额命中：1000 CNY × 0.14 = 140 USD 只够 100 档（20%），
+	// 不足 500 档；赠送按到账基数 140 × 20% = 28。
 	cfg := &PaymentConfig{
 		BalanceRechargeMultiplier: 0.14,
 		RechargeBonusTiers:        []RechargeBonusTier{{MinAmount: 100, BonusPercent: 20}, {MinAmount: 500, BonusPercent: 30}},
 	}
-	require.Equal(t, rechargeBonusQuote{PayBase: 1000, Credited: 182, Bonus: 42, Percent: 30}, quoteRechargeBonus(cfg, 1000, "CNY"))
+	require.Equal(t, rechargeBonusQuote{PayBase: 1000, Credited: 168, Bonus: 28, Percent: 20}, quoteRechargeBonus(cfg, 1000, "CNY"))
 	// 命中 0% 档位视为无优惠
 	cfg.RechargeBonusTiers = []RechargeBonusTier{{MinAmount: 10, BonusPercent: 0}}
 	require.Equal(t, rechargeBonusQuote{PayBase: 50, Credited: 7}, quoteRechargeBonus(cfg, 50, "CNY"))
@@ -275,8 +276,9 @@ func TestQuoteRechargeBonus(t *testing.T) {
 		cfg.BalanceRechargeMultiplier = 0.14
 		q = quoteRechargeBonus(cfg, 1000, "CNY")
 		require.Equal(t, rechargeBonusQuote{PayBase: 800, Credited: 140, Bonus: 28, Percent: 20}, q)
+		// 200 CNY 到账仅 28 USD，不足最低档 100，不命中任何优惠。
 		q = quoteRechargeBonus(cfg, 200, "CNY")
-		require.Equal(t, rechargeBonusQuote{PayBase: 160, Credited: 28, Bonus: 5.6, Percent: 20}, q)
+		require.Equal(t, rechargeBonusQuote{PayBase: 200, Credited: 28}, q)
 	})
 
 	t.Run("discount rounds pay base to currency precision", func(t *testing.T) {
